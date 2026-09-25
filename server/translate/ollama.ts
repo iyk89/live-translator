@@ -6,6 +6,12 @@ export interface OllamaProviderOptions {
   baseUrl: string;
   model: string;
   timeoutMs: number;
+  /**
+   * Context window in tokens. Ollama's default is small and it silently drops
+   * the start of longer prompts (including the instructions), so it is set
+   * explicitly: enough for the longest selection plus context and the answer.
+   */
+  numCtx: number;
   /** Injected for tests. */
   fetchImpl?: typeof fetch;
 }
@@ -66,7 +72,7 @@ export class OllamaProvider implements TranslationProvider {
           stream: true,
           // Thinking slows local models down and adds nothing to a translation.
           think: false,
-          options: { temperature: 0.2 },
+          options: { temperature: 0.2, num_ctx: this.#options.numCtx },
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: buildUserMessage(input) },

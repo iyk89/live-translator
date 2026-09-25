@@ -32,7 +32,12 @@ export function createProvider(config: ServerConfig): { provider: TranslationPro
   }
   if (config.provider === "ollama") {
     return {
-      provider: new OllamaProvider({ baseUrl: config.ollamaBaseUrl, model: config.model, timeoutMs: config.translateTimeoutMs }),
+      provider: new OllamaProvider({
+        baseUrl: config.ollamaBaseUrl,
+        model: config.model,
+        timeoutMs: config.translateTimeoutMs,
+        numCtx: config.ollamaNumCtx,
+      }),
       unavailableMessage: "",
     };
   }

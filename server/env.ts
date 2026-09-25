@@ -15,6 +15,7 @@ export interface ServerConfig {
   effort: Effort | null;
   refusalFallback: boolean;
   ollamaBaseUrl: string;
+  ollamaNumCtx: number;
   mockDelayMs: number;
   translateTimeoutMs: number;
   translateRatePerMinute: number;
@@ -60,6 +61,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     effort,
     refusalFallback: bool(env.PASSAGE_REFUSAL_FALLBACK, true),
     ollamaBaseUrl: env.OLLAMA_BASE_URL?.trim() || "http://127.0.0.1:11434",
+    ollamaNumCtx: int(env.PASSAGE_OLLAMA_NUM_CTX, 12_288, 2_048, 131_072),
     mockDelayMs: int(env.PASSAGE_MOCK_DELAY_MS, 150, 0, 60_000),
     translateTimeoutMs: int(env.PASSAGE_TRANSLATE_TIMEOUT_MS, 90_000, 5_000, 600_000),
     translateRatePerMinute: int(env.PASSAGE_TRANSLATE_RATE_PER_MIN, 30, 1, 10_000),

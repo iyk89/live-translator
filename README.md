@@ -36,6 +36,7 @@ Get a key at [console.anthropic.com](https://console.anthropic.com) → API Keys
 | `PASSAGE_REFUSAL_FALLBACK` | `true` | If the model declines a passage, Anthropic retries it on a recommended fallback model within the same request. |
 | `PASSAGE_TRANSLATION_PROVIDER` | `anthropic` | `anthropic`, or `ollama` for a local model (see below). `mock` is for automated tests only. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Local model server address (local mode). |
+| `PASSAGE_OLLAMA_NUM_CTX` | `12288` | Local model's text window in tokens. Big enough for the longest selection; lower it on low-memory machines. |
 | `PORT` / `HOST` | `8787` / `127.0.0.1` | Where the server listens. Use `HOST=0.0.0.0` in containers. |
 | `PASSAGE_TRUST_PROXY` | `false` | Set `true` behind a reverse proxy so rate limits see the real client address. |
 | `PASSAGE_MAX_FILE_MB` | `25` | Largest PDF for upload and link import. |

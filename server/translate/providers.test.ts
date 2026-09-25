@@ -139,7 +139,7 @@ describe("Anthropic adapter (stand-in server)", () => {
 });
 
 describe("Ollama adapter (stand-in server)", () => {
-  const ollama = (model = "qwen3:8b") => new OllamaProvider({ baseUrl: base, model, timeoutMs: 3_000 });
+  const ollama = (model = "qwen3:8b") => new OllamaProvider({ baseUrl: base, model, timeoutMs: 3_000, numCtx: 12_288 });
 
   it("streams a local translation with thinking disabled", async () => {
     let body: Record<string, unknown> = {};
@@ -157,6 +157,8 @@ describe("Ollama adapter (stand-in server)", () => {
     expect(body.model).toBe("qwen3:8b");
     expect(body.think).toBe(false);
     expect(body.stream).toBe(true);
+    // A large enough window so long selections are never silently truncated.
+    expect(body.options).toMatchObject({ num_ctx: 12_288 });
     expect((body.messages as Array<{ role: string }>).map((m) => m.role)).toEqual(["system", "user"]);
   });
 
@@ -169,7 +171,7 @@ describe("Ollama adapter (stand-in server)", () => {
       code: "not_configured",
       message: expect.stringContaining("ollama pull qwen3:8b"),
     });
-    const offline = new OllamaProvider({ baseUrl: "http://127.0.0.1:9", model: "qwen3:8b", timeoutMs: 2_000 });
+    const offline = new OllamaProvider({ baseUrl: "http://127.0.0.1:9", model: "qwen3:8b", timeoutMs: 2_000, numCtx: 12_288 });
     await expect(offline.translate(input, { onDelta() {} }, new AbortController().signal)).rejects.toMatchObject({
       code: "not_configured",
       message: expect.stringContaining("Start Ollama and try again"),
