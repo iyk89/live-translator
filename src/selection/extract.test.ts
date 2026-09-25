@@ -116,11 +116,8 @@ describe("selection extraction on a two-column paper", () => {
     // selection now spans both columns and is kept as the reader dragged it.
     expect(result.excluded.otherColumn).toBe(0);
 
-    const middle = selectRange(page1, "The encoder–decoder architecture", "end to end.");
-    const leak = { index: middle[0]!.index + 1, start: 0, end: 0 };
-    void leak;
-    // Construct a genuine leak: right-column item placed between two left-column items.
-    const model = withLeak(page1);
+    // A genuine leak: a right-column item placed between two left-column items in the stream.
+    const model = withLeak();
     const leaked = extractSelection(model.model, model.pieces);
     expect(leaked.excluded.otherColumn).toBe(1);
     expect(leaked.text).not.toContain("LEAK");
@@ -245,7 +242,7 @@ function syntheticModel(lines: Array<{ str: string; x: number; y: number; size?:
   });
 }
 
-function withLeak(model: PageModel): { model: PageModel; pieces: Piece[] } {
+function withLeak(): { model: PageModel; pieces: Piece[] } {
   // Rebuild page 1 with a right-column item injected into the left column's stream.
   const page = (sampleEn as FixturePage[])[0]!;
   const items = [...page.content.items];
@@ -260,6 +257,5 @@ function withLeak(model: PageModel): { model: PageModel; pieces: Piece[] } {
     hasEOL: false,
   });
   const leakModel = buildPageModel(0, { items, styles: page.content.styles }, page.box);
-  void model;
   return { model: leakModel, pieces: selectRange(leakModel, "The encoder–decoder architecture", "end to end.") };
 }

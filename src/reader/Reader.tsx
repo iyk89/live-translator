@@ -22,7 +22,6 @@ import {
   computeLayout,
   currentPageIndex,
   fitWidthZoom,
-  pageAt,
   PDF_TO_CSS,
   pointFor,
   stepZoom,
@@ -91,6 +90,13 @@ export function Reader(props: ReaderProps) {
         if (!hasText) setNoTextPages((prev) => new Set(prev).add(pageIndex));
       },
       onTextLayerReady: (pageIndex) => setTextLayerPages((prev) => new Set(prev).add(pageIndex)),
+      onTextLayerReleased: (pageIndex) =>
+        setTextLayerPages((prev) => {
+          if (!prev.has(pageIndex)) return prev;
+          const next = new Set(prev);
+          next.delete(pageIndex);
+          return next;
+        }),
       onPageError: (pageIndex, message) => setPageErrors((prev) => new Map(prev).set(pageIndex, message)),
     });
     setRenderer(instance);
@@ -194,6 +200,7 @@ export function Reader(props: ReaderProps) {
   /* ----------------------------------------------- Scroll position & paging */
 
   const viewAnchor = useRef<ScrollAnchor | null>(null);
+  const lastPosition = useRef<{ pageIndex: number; pageOffset: number } | null>(null);
   const restored = useRef(false);
   const lastLayout = useRef<Layout | null>(null);
 
@@ -216,9 +223,13 @@ export function Reader(props: ReaderProps) {
     const keep = new Set<number>();
     for (let i = Math.max(0, first - 3); i <= Math.min(layout.pages.length - 1, last + 3); i++) keep.add(i);
     renderer.update(wanted, keep);
-    setCurrentPage(currentPageIndex(layout, top, el.clientHeight));
+    const current = currentPageIndex(layout, top, el.clientHeight);
+    setCurrentPage(current);
     if (restored.current) {
       viewAnchor.current = anchorAt(layout, el.scrollLeft + el.clientWidth / 2, top + el.clientHeight / 2);
+      // Remember the position against the page shown in the toolbar.
+      const page = layout.pages[current]!;
+      lastPosition.current = { pageIndex: current, pageOffset: Math.min(1, Math.max(-0.5, (top - page.top) / page.height)) };
     }
   }, [layout, renderer]);
 
@@ -247,20 +258,19 @@ export function Reader(props: ReaderProps) {
   }, [layout, sizesFinal, props.initialPosition, updateVisibility]);
 
   const positionTimer = useRef<number | undefined>(undefined);
+  // Writes the last known position; safe to call during unmount (no DOM reads).
   const persistPosition = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || !layout || !restored.current) return;
-    const pageIndex = pageAt(layout, el.scrollTop);
-    const page = layout.pages[pageIndex]!;
+    const last = lastPosition.current;
+    if (!last || !restored.current) return;
     const position: ReadingPosition = {
       fingerprint: meta.fingerprint,
-      pageIndex,
-      pageOffset: Math.min(1, Math.max(0, (el.scrollTop - page.top) / page.height)),
+      pageIndex: last.pageIndex,
+      pageOffset: last.pageOffset,
       zoom: { mode: zoomState.mode, scale: zoomState.mode === "custom" ? zoomState.value : zoom },
       updatedAt: Date.now(),
     };
     void savePosition(position);
-  }, [layout, meta.fingerprint, zoomState, zoom]);
+  }, [meta.fingerprint, zoomState, zoom]);
 
   useEffect(() => {
     const flush = () => persistPosition();
@@ -401,6 +411,9 @@ export function Reader(props: ReaderProps) {
       timer = window.setTimeout(evaluateSelection, 220);
     };
     const onPointerDown = (event: PointerEvent) => {
+      // Touch selection handles don't reliably report pointerup; for touch and
+      // pen, the debounced selectionchange shows the action instead.
+      if (event.pointerType !== "mouse") return;
       if ((event.target as Element | null)?.closest?.(".translate-action, .card")) return;
       pointerDown.current = true;
     };
@@ -488,6 +501,7 @@ export function Reader(props: ReaderProps) {
   const [naturalHeight, setNaturalHeight] = useState(180);
   const [placement, setPlacement] = useState<PlacementResult | null>(null);
   const placementRef = useRef<PlacementResult | null>(null);
+  const placedFor = useRef<string | null>(null);
   const activeAnchor = card?.snapshot.anchor ?? null;
 
   useLayoutEffect(() => {
@@ -502,6 +516,9 @@ export function Reader(props: ReaderProps) {
     if (!page || !bounds) return;
     const anchorBox = toPixels(bounds, page);
     const lastRect = activeAnchor.rects[activeAnchor.rects.length - 1];
+    // A new passage chooses its side afresh; the same passage keeps its side.
+    if (placedFor.current !== card.snapshot.id) placementRef.current = null;
+    placedFor.current = card.snapshot.id;
     const next = placeCard({
       anchor: anchorBox,
       lastLine: lastRect ? toPixels(lastRect, page) : undefined,
@@ -527,8 +544,8 @@ export function Reader(props: ReaderProps) {
     const sheetTop = sheetEl.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
     const overlap = box.top + Math.min(box.height, 120) + 12 - sheetTop;
     if (overlap > 0) el.scrollTop += Math.min(overlap, Math.max(0, box.top - el.scrollTop - 8));
-    // Only when a new passage opens.
-  }, [card?.snapshot.id, sheet]);
+    // When a passage opens and once more when its (taller) translation arrives.
+  }, [card?.snapshot.id, card?.status === "done", sheet]);
 
   useEffect(() => {
     if (!card) placementRef.current = null;

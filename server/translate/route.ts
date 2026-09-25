@@ -1,9 +1,10 @@
 import type { Context } from "hono";
-import { translateRequestSchema, type TranslateStreamEvent, type TranslationErrorBody, type TranslationErrorCode } from "../../shared/contracts";
+import type { TranslateStreamEvent, TranslationErrorBody, TranslationErrorCode } from "../../shared/contracts";
 import { BusyError, RateLimiter, Semaphore } from "../limits";
 import type { Logger } from "../logger";
 import { MockProvider, type MockControls } from "./mock";
 import { ProviderError, type TranslationProvider } from "./provider";
+import { translateRequestSchema } from "./schema";
 
 export interface TranslateRouteDeps {
   provider: TranslationProvider | null;

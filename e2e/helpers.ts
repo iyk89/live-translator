@@ -114,3 +114,16 @@ export async function textBox(page: Page, pageIndex: number, text: string) {
   const start = await charPoint(page, pageIndex, text, "start");
   return start;
 }
+
+/**
+ * Clicks the floating Translate button where it is, like a person would.
+ * (Locator.click() may scroll the element into view first, which would hide
+ * whether the app itself keeps the reading position.)
+ */
+export async function clickTranslate(page: Page) {
+  const action = page.locator(".translate-action:not(.is-info)");
+  await expect(action).toBeVisible();
+  await page.waitForTimeout(150);
+  const box = (await action.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}

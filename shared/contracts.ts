@@ -1,6 +1,4 @@
-import { z } from "zod";
-import { CONTEXT_LIMITS, DEFAULT_LIMITS } from "./config";
-import { TARGET_LANGUAGE_CODES, type TargetLanguageCode } from "./languages";
+import type { TargetLanguageCode } from "./languages";
 
 /* ------------------------------------------------------------------------- */
 /* Translation                                                               */
@@ -9,32 +7,15 @@ import { TARGET_LANGUAGE_CODES, type TargetLanguageCode } from "./languages";
 /**
  * POST /api/translate request body. `text` is the exact selection shown to the
  * reader; `context` is bounded nearby text used only to resolve meaning.
+ * Validated on the server by server/translate/schema.ts.
  */
-export function translateRequestSchema(maxSelectionChars: number = DEFAULT_LIMITS.maxSelectionChars) {
-  return z
-    .object({
-      requestId: z.string().min(8).max(64).regex(/^[A-Za-z0-9-]+$/),
-      targetLang: z.enum(TARGET_LANGUAGE_CODES),
-      sourceLang: z
-        .string()
-        .max(12)
-        .regex(/^[a-zA-Z-]+$/)
-        .nullish(),
-      text: z.string().min(1).max(maxSelectionChars),
-      context: z
-        .object({
-          before: z.string().max(CONTEXT_LIMITS.beforeChars).default(""),
-          after: z.string().max(CONTEXT_LIMITS.afterChars).default(""),
-          title: z.string().max(CONTEXT_LIMITS.titleChars).nullish(),
-          section: z.string().max(CONTEXT_LIMITS.sectionChars).nullish(),
-        })
-        .strict(),
-    })
-    .strict()
-    .refine((value) => value.text.trim().length > 0, { message: "text must not be blank", path: ["text"] });
+export interface TranslateRequest {
+  requestId: string;
+  targetLang: TargetLanguageCode;
+  sourceLang?: string | null;
+  text: string;
+  context: { before: string; after: string; title?: string | null; section?: string | null };
 }
-
-export type TranslateRequest = z.infer<ReturnType<typeof translateRequestSchema>>;
 
 export type TranslationErrorCode =
   | "invalid_request"
@@ -140,4 +121,3 @@ export const IMPORT_HEADERS = {
   source: "x-passage-source",
 } as const;
 
-export type TranslateTarget = TargetLanguageCode;

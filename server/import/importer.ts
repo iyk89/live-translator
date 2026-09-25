@@ -56,13 +56,14 @@ export function normalizeInput(raw: string): { url: URL; arxiv: ArxivId | null }
   } catch {
     throw new ImportError("invalid_url", "That doesn't look like a web link. Paste a link that starts with https://", 400);
   }
-  assertAllowedShape(url);
+  // Ports are checked per request (with the configured allow list).
+  assertAllowedShape(url, null);
   const arxiv = resolveArxivUrl(url);
   if (arxiv) return { url: arxiv.pdfUrl, arxiv: arxiv.arxiv };
   return { url, arxiv: null };
 }
 
-function assertAllowedShape(url: URL, allowedPorts: number[] = [80, 443]): void {
+function assertAllowedShape(url: URL, allowedPorts: number[] | null = [80, 443]): void {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new ImportError("unsupported_scheme", "Only http and https links are supported.", 400);
   }
@@ -72,7 +73,7 @@ function assertAllowedShape(url: URL, allowedPorts: number[] = [80, 443]): void 
   if (!url.hostname) {
     throw new ImportError("invalid_url", "That doesn't look like a web link. Paste a link that starts with https://", 400);
   }
-  if (url.port && !allowedPorts.includes(Number(url.port))) {
+  if (allowedPorts && url.port && !allowedPorts.includes(Number(url.port))) {
     throw new ImportError("blocked_destination", "Links to non-standard ports aren't supported.", 400);
   }
 }

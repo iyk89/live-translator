@@ -58,7 +58,7 @@ export function Toolbar(props: ToolbarProps) {
       <div className="toolbar-group" aria-label="Pages">
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn page-step"
           onClick={() => props.onGoToPage(pageIndex - 1)}
           disabled={pageIndex <= 0}
           aria-label="Previous page"
@@ -84,7 +84,7 @@ export function Toolbar(props: ToolbarProps) {
         </span>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn page-step"
           onClick={() => props.onGoToPage(pageIndex + 1)}
           disabled={pageIndex >= pageCount - 1}
           aria-label="Next page"

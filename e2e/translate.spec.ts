@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   card,
+  clickTranslate,
   charPoint,
   chooseTargetLanguage,
   dragSelect,
@@ -31,7 +32,7 @@ async function start(page: Page, language = "Korean") {
 
 async function translateParagraph(page: Page) {
   await dragSelect(page, 0, "The encoder–decoder architecture", "amount of information.");
-  await page.locator(".translate-action").click();
+  await clickTranslate(page);
   return translatedText(page);
 }
 
@@ -40,7 +41,7 @@ test.describe("selection translation", () => {
     await openSample(page);
     const word = await charPoint(page, 0, "bottleneck", "start");
     await page.mouse.dblclick(word.x + 12, word.y);
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     // First use: the language is chosen inline in the card.
     await expect(card(page)).toHaveAttribute("data-status", "need-language");
     await card(page).getByRole("button", { name: /Korean/ }).click();
@@ -71,7 +72,10 @@ test.describe("selection translation", () => {
 
   test("captures a whole paragraph exactly as selected", async ({ page }) => {
     await start(page);
+    const scrollBefore = await page.locator(".doc-scroll").evaluate((el) => el.scrollTop);
     expect(await translateParagraph(page)).toBe(`[mock ko] ${PARAGRAPH}`);
+    // Opening the card keeps the reading position.
+    expect(await page.locator(".doc-scroll").evaluate((el) => el.scrollTop)).toBe(scrollBefore);
     await page.getByRole("button", { name: "Show full selection" }).click();
     await expect(page.locator(".card-source-text")).toHaveText(PARAGRAPH);
     // The passage stays visible and highlighted; the card sits beside it.
@@ -126,7 +130,7 @@ test.describe("selection translation", () => {
     expect(await page.locator(".doc-scroll").evaluate((el) => [el.scrollTop, el.scrollLeft])).toEqual(before);
 
     await dragSelect(page, 0, "The encoder–decoder architecture", "amount of information.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     expect(await translatedText(page)).toBe(`[mock ko] ${PARAGRAPH}`);
     await expect(page.locator(".card-note")).toHaveText("Saved translation");
     expect(requests).toHaveLength(1);
@@ -183,11 +187,11 @@ test.describe("selection translation", () => {
       await route.continue({ headers: { ...route.request().headers(), "x-passage-mock-delay-ms": delay } });
     });
     await dragSelect(page, 0, "The encoder–decoder architecture", "end to end.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     await expect(card(page)).toHaveAttribute("data-status", "loading");
     await scrollTextIntoView(page, 0, "Attention replaces the constant");
     await dragSelect(page, 0, "Attention replaces the constant", "weighted average:");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     const second = await translatedText(page);
     expect(second.startsWith("[mock ko] Attention replaces the constant context")).toBe(true);
     await page.waitForTimeout(3000);
@@ -204,7 +208,7 @@ test.describe("selection translation", () => {
       await route.continue({ headers });
     });
     await dragSelect(page, 0, "The encoder–decoder architecture", "end to end.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     await expect(card(page)).toHaveAttribute("data-status", "error");
     await expect(card(page).getByRole("alert")).toHaveText(/Mock failure: rate_limited/);
     await expect(page.locator(".card-source-text")).toContainText("The encoder–decoder architecture");
@@ -228,7 +232,7 @@ test.describe("selection translation", () => {
       }),
     );
     await dragSelect(page, 0, "The encoder–decoder architecture", "end to end.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     await expect(card(page).getByRole("alert")).toHaveText(/no translation API key yet/);
     await expect(card(page).getByRole("button", { name: "Retry" })).toHaveCount(0);
   });
@@ -261,7 +265,7 @@ test.describe("selection translation", () => {
     await start(page, "English");
     const requests = trackTranslateRequests(page);
     await dragSelect(page, 0, "The encoder–decoder architecture", "end to end.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     await expect(card(page)).toHaveAttribute("data-status", "same-language");
     await expect(card(page)).toContainText("already appears to be in English");
     expect(requests).toHaveLength(0);
@@ -285,7 +289,7 @@ test.describe("selection translation", () => {
     await page.locator(".doc-scroll").evaluate((el) => (el.scrollTop = 0));
     await page.waitForTimeout(300);
     await dragSelect(page, 0, "The encoder–decoder architecture", "amount of information.");
-    await page.locator(".translate-action").click();
+    await clickTranslate(page);
     expect(await translatedText(page)).toBe(`[mock ko] ${PARAGRAPH}`);
     expect(requests).toHaveLength(1);
   });

@@ -16,6 +16,8 @@ export interface RendererEvents {
   onTextInfo(pageIndex: number, hasText: boolean): void;
   /** A page's text layer is in the DOM (selection is possible). */
   onTextLayerReady(pageIndex: number): void;
+  /** A page's text layer was released (it will be rebuilt when needed). */
+  onTextLayerReleased(pageIndex: number): void;
   /** A page could not be rendered. */
   onPageError(pageIndex: number, message: string): void;
 }
@@ -374,6 +376,7 @@ export class PageRenderer {
     if (slot.textDiv) {
       unregisterTextLayer(slot.textDiv);
       slot.textDiv.remove();
+      if (!this.#destroyed) this.#events.onTextLayerReleased(slot.index);
     }
     slot.textLayer?.cancel();
     slot.textLayer = null;

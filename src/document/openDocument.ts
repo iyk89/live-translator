@@ -1,7 +1,7 @@
 import { IMPORT_HEADERS, type ImportErrorBody } from "../../shared/contracts";
 import { formatBytes, type Limits } from "../../shared/config";
 import { sha256Hex } from "../lib/hash";
-import { DocumentError, guessTitle, openPdf, titleFromFileName, type PDFDocumentProxy } from "../lib/pdf";
+import type { PDFDocumentProxy } from "../lib/pdf";
 import type { StoredDocumentMeta } from "../storage/db";
 
 export type DocumentSource =
@@ -71,6 +71,8 @@ export async function openDocument(
   }
   signal.throwIfAborted();
   onStage("opening");
+  // pdf.js is large; it loads only when a paper is opened.
+  const { DocumentError, guessTitle, openPdf, titleFromFileName } = await import("../lib/pdf");
   let opened;
   try {
     opened = await openPdf(bytes, limits);

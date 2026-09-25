@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { APP_NAME } from "../shared/brand";
 import type { TargetLanguageCode } from "../shared/languages";
 import { openDocument, OpenError, type DocumentSource, type OpenedDocument, type OpenStage } from "./document/openDocument";
 import { ImportScreen } from "./import/ImportScreen";
 import { limitsFrom, useServerConfig } from "./lib/useServerConfig";
-import { Reader } from "./reader/Reader";
+
+const Reader = lazy(() => import("./reader/Reader").then((module) => ({ default: module.Reader })));
 import {
   clearAllData,
   loadCurrentDocumentMeta,
@@ -140,13 +141,16 @@ export function App() {
     })();
   }, [route, session, open]);
 
+  // The open paper counts as "available" even when the browser refused to save it.
+  const continueDoc = saved ?? (session ? { meta: session.opened.meta, pageIndex: null } : null);
+
   const onContinue = async () => {
-    if (!saved) return;
-    if (session && session.opened.meta.fingerprint === saved.meta.fingerprint) {
-      setSession({ ...session, position: await loadPosition(saved.meta.fingerprint) });
+    if (session && (!saved || session.opened.meta.fingerprint === saved.meta.fingerprint)) {
+      setSession({ ...session, position: await loadPosition(session.opened.meta.fingerprint) });
       navigate("read");
       return;
     }
+    if (!saved) return;
     const bytes = await loadDocumentBytes(saved.meta.fingerprint);
     if (!bytes) {
       setError("The saved paper couldn't be loaded from this browser. Open the file again.");
@@ -162,7 +166,8 @@ export function App() {
 
   if (route === "read" && session) {
     return (
-      <Reader
+      <Suspense fallback={<OpeningStatus label="Opening your paper…" />}>
+        <Reader
         key={session.opened.meta.fingerprint + (session.position?.updatedAt ?? "")}
         opened={session.opened}
         initialPosition={session.position}
@@ -172,19 +177,13 @@ export function App() {
         onTargetLang={onTargetLang}
         onBack={() => navigate("import")}
         storageNotice={session.storageNotice}
-      />
+        />
+      </Suspense>
     );
   }
 
   if (route === "read") {
-    return (
-      <div className="import">
-        <div className="status-line" role="status" style={{ marginTop: "30vh" }}>
-          <span className="spinner" aria-hidden="true" />
-          {stage === "opening" || stage === null ? "Opening your paper…" : "Loading…"}
-        </div>
-      </div>
-    );
+    return <OpeningStatus label="Opening your paper…" />;
   }
 
   return (
@@ -194,7 +193,7 @@ export function App() {
       stage={stage}
       error={error}
       notice={notice ?? (serverConfig.status === "offline" ? "The Passage server isn't responding. Uploads still work; links and translation need the server." : null)}
-      continueDoc={saved}
+      continueDoc={continueDoc}
       linkValue={linkValue}
       onLinkChange={setLinkValue}
       onOpenFile={(file) => void open({ kind: "file", file })}
@@ -204,6 +203,9 @@ export function App() {
       onClearData={async () => {
         const result = await clearAllData();
         if (result.ok) {
+          // Forget the open paper too, so nothing is offered for "Continue reading".
+          if (session) void session.opened.destroy();
+          setSession(null);
           setSaved(null);
           setTargetLang(null);
           saveTargetLanguage(null);
@@ -211,5 +213,16 @@ export function App() {
         return result.ok;
       }}
     />
+  );
+}
+
+function OpeningStatus({ label }: { label: string }) {
+  return (
+    <div className="import">
+      <div className="status-line" role="status" style={{ marginTop: "30vh" }}>
+        <span className="spinner" aria-hidden="true" />
+        {label}
+      </div>
+    </div>
   );
 }
